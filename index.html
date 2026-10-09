@@ -63,7 +63,7 @@ input{width:100%;font:inherit;padding:10px;margin:4px 0 10px;border:1px solid va
 
 <script>
 const $ = id => document.getElementById(id);
-const PORT = 8884; // HiveMQ Cloud WebSocket (TLS) port
+const PORT = 8084; // HiveMQ Cloud WebSocket (TLS) port
 let client = null, online = false;
 
 function load(){ try { return JSON.parse(localStorage.getItem("shutterCfg")||"null"); } catch(e){ return null; } }
