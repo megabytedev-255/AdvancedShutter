@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shutter</title>
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<style>
+:root{--bg:#e8eef2;--ink:#1b2a36;--slat:#7e93a3;--sun:#f2b84b;--card:#fff;--line:#c9d5dd}
+@media (prefers-color-scheme:dark){:root{--bg:#16212a;--ink:#e8eef2;--slat:#5f7584;--sun:#f2b84b;--card:#1f2e3a;--line:#33475a}}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font-family:system-ui,sans-serif;display:flex;justify-content:center}
+main{width:100%;max-width:400px;padding:24px 20px}
+h1{font-size:1.5rem;margin:0 0 4px}
+#sub{margin:0 0 20px;color:var(--slat)}
+.window{position:relative;height:200px;border:6px solid var(--ink);border-radius:6px;background:var(--sun);overflow:hidden}
+.curtain{position:absolute;inset:0 0 auto 0;height:0;transition:height 1.4s ease;
+  background:repeating-linear-gradient(to bottom,var(--slat) 0 18px,var(--ink) 18px 21px)}
+.window[data-state=closed] .curtain{height:100%}
+.window[data-state=open] .curtain{height:8%}
+.window[data-state=unknown] .curtain{height:50%;opacity:.45}
+.row{display:flex;gap:10px;margin-top:14px}
+button{flex:1;font:inherit;font-size:1.05rem;padding:15px;border:2px solid var(--ink);border-radius:8px;background:var(--ink);color:var(--bg);cursor:pointer}
+button.alt{background:transparent;color:var(--ink)}
+button:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+button:active{transform:translateY(1px)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px;margin-top:14px}
+input{width:100%;font:inherit;padding:10px;margin:4px 0 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+#msg{min-height:1.2em;margin:12px 0 0;color:var(--slat);font-size:.95rem}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<main>
+  <h1>Shutter</h1>
+  <p id="sub">Connecting...</p>
+
+  <section id="login" class="card hidden">
+    <b>Connect to your shutter</b>
+    <label>MQTT broker host<input id="host" placeholder="xxxxxxxx.s1.eu.hivemq.cloud"></label>
+    <label>Username<input id="user" autocomplete="username"></label>
+    <label>Password<input id="pass" type="password" autocomplete="current-password"></label>
+    <button id="save">Save and connect</button>
+  </section>
+
+  <section id="panel" class="hidden">
+    <div class="window" id="win" data-state="unknown"><div class="curtain"></div></div>
+    <div class="row">
+      <button data-cmd="open">Open</button>
+      <button data-cmd="close">Close</button>
+    </div>
+    <div class="row">
+      <button class="alt" data-cmd="leave">I'm leaving</button>
+      <button class="alt" data-cmd="cancel">Cancel</button>
+    </div>
+    <div class="row">
+      <button class="alt" data-cmd="away_on">Away on</button>
+      <button class="alt" data-cmd="away_off">Away off</button>
+    </div>
+    <p id="msg"></p>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const PORT = 8884; // HiveMQ Cloud WebSocket (TLS) port
+let client = null, online = false;
+
+function load(){ try { return JSON.parse(localStorage.getItem("shutterCfg")||"null"); } catch(e){ return null; } }
+function store(c){ try { localStorage.setItem("shutterCfg", JSON.stringify(c)); } catch(e){} }
+
+function show(loggedIn){
+  $("login").classList.toggle("hidden", loggedIn);
+  $("panel").classList.toggle("hidden", !loggedIn);
+}
+
+function connect(cfg){
+  if (client) client.end(true);
+  $("sub").textContent = "Connecting...";
+  client = mqtt.connect(`wss://${cfg.host}:${PORT}/mqtt`, {
+    username: cfg.user, password: cfg.pass, reconnectPeriod: 4000,
+    clientId: "web-" + Math.random().toString(16).slice(2, 8)
+  });
+  client.on("connect", () => {
+    client.subscribe(["shutter/status", "shutter/availability"]);
+    show(true);
+  });
+  client.on("error", () => { $("sub").textContent = "Could not connect. Check host, username and password."; show(false); });
+  client.on("message", (topic, payload) => {
+    const text = payload.toString();
+    if (topic === "shutter/availability") {
+      online = text === "online";
+      $("sub").textContent = online ? "Shutter controller is online" : "Shutter controller is offline";
+    } else {
+      try {
+        const s = JSON.parse(text);
+        $("win").dataset.state = s.state;
+        $("msg").textContent = `${s.last} (schedule ${s.open} open, ${s.close} close${s.away ? ", away mode on" : ""})`;
+      } catch(e){}
+    }
+  });
+}
+
+document.querySelectorAll("[data-cmd]").forEach(b => b.addEventListener("click", () => {
+  if (!client || !client.connected) { $("msg").textContent = "Not connected."; return; }
+  client.publish("shutter/cmd", b.dataset.cmd);
+  $("msg").textContent = `Sent: ${b.textContent}`;
+}));
+
+$("save").addEventListener("click", () => {
+  const cfg = { host: $("host").value.trim(), user: $("user").value.trim(), pass: $("pass").value };
+  if (!cfg.host || !cfg.user || !cfg.pass) return;
+  store(cfg); connect(cfg);
+});
+
+const saved = load();
+if (saved) connect(saved); else { $("sub").textContent = "Enter your broker details once on this phone."; show(false); }
+</script>
+</body>
+</html>
