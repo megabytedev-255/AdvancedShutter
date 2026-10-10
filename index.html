@@ -95,7 +95,7 @@ function connect(cfg){
       try {
         const s = JSON.parse(text);
         $("win").dataset.state = s.state;
-        $("msg").textContent = `${s.last} (schedule ${s.open} open, ${s.close} close${s.away ? ", away mode on" : ""})`;
+        $("msg").textContent = `${s.last} (schedule ${s.open} open, ${s.close} close${s.away ? ", away mode on" : ""}) | WiFi ${s.rssi} dBm`;
       } catch(e){}
     }
   });
