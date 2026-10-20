@@ -2,119 +2,314 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1b3a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Shutter">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Shutter</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b1b3a'/%3E%3Cpath d='M14 18h36M14 28h36M14 38h36' stroke='%23ff7a1a' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <style>
-:root{--bg:#e8eef2;--ink:#1b2a36;--slat:#7e93a3;--sun:#f2b84b;--card:#fff;--line:#c9d5dd}
-@media (prefers-color-scheme:dark){:root{--bg:#16212a;--ink:#e8eef2;--slat:#5f7584;--sun:#f2b84b;--card:#1f2e3a;--line:#33475a}}
-*{box-sizing:border-box}
-body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font-family:system-ui,sans-serif;display:flex;justify-content:center}
-main{width:100%;max-width:400px;padding:24px 20px}
-h1{font-size:1.5rem;margin:0 0 4px}
-#sub{margin:0 0 20px;color:var(--slat)}
-.window{position:relative;height:200px;border:6px solid var(--ink);border-radius:6px;background:var(--sun);overflow:hidden}
+:root{
+  --bg:#ffffff;--surface:#f3f6fb;--card:#ffffff;--ink:#0b1b3a;--muted:#5b6b88;--line:#dfe5f0;
+  --navy:#0b1b3a;--navy2:#16346a;--orange:#ff7a1a;--btn-open:#0b1b3a;--ok:#1f9d55;--bad:#d64545;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#07122a;--surface:#0d1c3d;--card:#10244d;--ink:#f4f7fc;--muted:#9db0d3;--line:#1f3563;--btn-open:#1d4380}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100dvh}
+main{max-width:460px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 16px) 18px calc(env(safe-area-inset-bottom,0px) + 28px)}
+.hidden{display:none!important}
+
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.2rem;letter-spacing:.2px}
+.brand svg{width:34px;height:34px}
+.pill{display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:.85rem;color:var(--muted)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.pill[data-kind=ok] .dot{background:var(--ok)}
+.pill[data-kind=bad] .dot{background:var(--bad)}
+.pill[data-kind=wait] .dot{background:var(--orange);animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.35}}
+
+.hero{display:flex;gap:18px;align-items:center;padding:20px;border-radius:22px;color:#fff;
+  background:linear-gradient(145deg,var(--navy) 0%,var(--navy2) 100%);box-shadow:0 10px 30px rgba(11,27,58,.25)}
+.win{position:relative;flex:none;width:92px;height:112px;border:5px solid rgba(255,255,255,.92);border-radius:10px;overflow:hidden;
+  background:linear-gradient(#ffc489,var(--orange))}
 .curtain{position:absolute;inset:0 0 auto 0;height:0;transition:height 1.4s ease;
-  background:repeating-linear-gradient(to bottom,var(--slat) 0 18px,var(--ink) 18px 21px)}
-.window[data-state=closed] .curtain{height:100%}
-.window[data-state=open] .curtain{height:8%}
-.window[data-state=unknown] .curtain{height:50%;opacity:.45}
-.row{display:flex;gap:10px;margin-top:14px}
-button{flex:1;font:inherit;font-size:1.05rem;padding:15px;border:2px solid var(--ink);border-radius:8px;background:var(--ink);color:var(--bg);cursor:pointer}
-button.alt{background:transparent;color:var(--ink)}
-button:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
-button:active{transform:translateY(1px)}
-.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px;margin-top:14px}
-input{width:100%;font:inherit;padding:10px;margin:4px 0 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
-#msg{min-height:1.2em;margin:12px 0 0;color:var(--slat);font-size:.95rem}
-.hidden{display:none}
+  background:repeating-linear-gradient(to bottom,#3f66ad 0 10px,#0b1b3a 10px 12px)}
+.win[data-state=closed] .curtain{height:100%}
+.win[data-state=open] .curtain{height:10%}
+.win[data-state=unknown] .curtain{height:55%;opacity:.5}
+.win.moving .curtain{animation:blink 1s infinite}
+.heroText{min-width:0}
+.eyebrow{margin:0 0 2px;font-size:.78rem;text-transform:uppercase;letter-spacing:1.4px;color:#ffb27a}
+#big{margin:0;font-size:2rem;line-height:1.1}
+#sub{margin:6px 0 10px;font-size:.92rem;color:#cdd8ee;overflow-wrap:anywhere}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.13);font-size:.78rem}
+.chip.away{background:var(--orange);color:#0b1b3a;font-weight:600}
+
+.alert{margin-top:14px;padding:12px 14px;border-radius:14px;background:rgba(214,69,69,.12);border:1px solid var(--bad);color:var(--ink);font-size:.92rem}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:64px;border:0;border-radius:16px;
+  font:inherit;font-size:1.05rem;font-weight:700;color:#fff;cursor:pointer;transition:transform .08s,opacity .2s}
+.btn svg{width:22px;height:22px}
+.btn:active:not(:disabled){transform:scale(.97)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn:focus-visible,.sw:focus-visible,.link:focus-visible,input:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
+.btn.open{background:var(--btn-open)}
+.btn.close{background:var(--orange);color:#0b1b3a}
+.btn.ghost{min-height:50px;font-size:.95rem;font-weight:600;background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+
+.card{margin-top:14px;padding:16px;border-radius:18px;background:var(--card);border:1px solid var(--line)}
+.switchrow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.switchrow b{display:block}
+.switchrow small{color:var(--muted)}
+.sw{appearance:none;-webkit-appearance:none;flex:none;width:54px;height:32px;border-radius:999px;background:var(--line);position:relative;cursor:pointer;transition:background .2s;margin:0}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
+.sw:checked{background:var(--orange)}
+.sw:checked::after{transform:translateX(22px)}
+.sw:disabled{opacity:.4}
+.info{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.info small{display:block;color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
+.info b{font-size:1.05rem}
+
+.login h2{margin:0 0 4px;font-size:1.25rem}
+.login p{margin:0 0 14px;color:var(--muted);font-size:.92rem}
+label{display:block;font-size:.85rem;color:var(--muted);margin:10px 0 4px}
+input[type=text],input[type=password]{width:100%;padding:13px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font:inherit}
+#save{width:100%;margin-top:16px;background:var(--orange);color:#0b1b3a}
+#loginMsg{min-height:1.2em;margin:10px 0 0;color:var(--bad);font-size:.9rem}
+
+footer{margin-top:22px;text-align:center}
+.link{background:none;border:0;color:var(--muted);font:inherit;font-size:.9rem;text-decoration:underline;cursor:pointer}
+
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);transform:translate(-50%,20px);opacity:0;pointer-events:none;
+  background:var(--navy);color:#fff;padding:11px 18px;border-radius:999px;font-size:.92rem;transition:.25s;border:1px solid var(--orange)}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
 <main>
-  <h1>Shutter</h1>
-  <p id="sub">Connecting...</p>
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#0b1b3a"/><path d="M14 18h36M14 28h36M14 38h36" stroke="#ff7a1a" stroke-width="6" stroke-linecap="round"/></svg>
+      <span>Shutter</span>
+    </div>
+    <div class="pill" id="pill" data-kind="wait"><i class="dot"></i><span id="pillText">Connecting…</span></div>
+  </header>
 
-  <section id="login" class="card hidden">
-    <b>Connect to your shutter</b>
-    <label>MQTT broker host<input id="host" placeholder="xxxxxxxx.emqx"></label>
-    <label>Username<input id="user" autocomplete="username"></label>
-    <label>Password<input id="pass" type="password" autocomplete="current-password"></label>
-    <button id="save">Save and connect</button>
+  <section id="login" class="card login hidden">
+    <h2>Connect your shutter</h2>
+    <p>Enter your details once on this device.</p>
+    <label for="host">Broker address</label>
+    <input id="host" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="xxxxxxxx.emqxsl.com">
+    <label for="user">Username</label>
+    <input id="user" type="text" autocomplete="username" autocapitalize="off">
+    <label for="pass">Password</label>
+    <input id="pass" type="password" autocomplete="current-password">
+    <button class="btn" id="save">Connect</button>
+    <p id="loginMsg"></p>
   </section>
 
-  <section id="panel" class="hidden">
-    <div class="window" id="win" data-state="unknown"><div class="curtain"></div></div>
-    <div class="row">
-      <button data-cmd="open">Open</button>
-      <button data-cmd="close">Close</button>
+  <div id="app" class="hidden">
+    <section class="hero">
+      <div class="win" id="win" data-state="unknown"><div class="curtain"></div></div>
+      <div class="heroText">
+        <p class="eyebrow">Status</p>
+        <h1 id="big">–</h1>
+        <p id="sub">Waiting for the controller…</p>
+        <div class="chips">
+          <span class="chip away hidden" id="awayChip">Away mode</span>
+          <span class="chip" id="sigChip">Signal –</span>
+        </div>
+      </div>
+    </section>
+
+    <div id="alert" class="alert hidden"></div>
+
+    <div class="grid2">
+      <button class="btn open" id="bOpen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>Open
+      </button>
+      <button class="btn close" id="bClose">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>Close
+      </button>
     </div>
-    <div class="row">
-      <button class="alt" data-cmd="leave">I'm leaving</button>
-      <button class="alt" data-cmd="cancel">Cancel</button>
+    <div class="grid2">
+      <button class="btn ghost" id="bLeave">I’m leaving</button>
+      <button class="btn ghost" id="bCancel">Cancel</button>
     </div>
-    <div class="row">
-      <button class="alt" data-cmd="away_on">Away on</button>
-      <button class="alt" data-cmd="away_off">Away off</button>
-    </div>
-    <p id="msg"></p>
-  </section>
+
+    <label class="card switchrow" for="away">
+      <span><b>Away mode</b><small>Skip the scheduled open and close</small></span>
+      <input class="sw" type="checkbox" id="away">
+    </label>
+
+    <section class="card info">
+      <div><small>Opens</small><b id="tOpen">–</b></div>
+      <div><small>Closes</small><b id="tClose">–</b></div>
+      <div><small>Updated</small><b id="tAgo">–</b></div>
+    </section>
+  </div>
+
+  <footer><button class="link" id="signout">Sign out of this device</button></footer>
 </main>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <script>
-const $ = id => document.getElementById(id);
-const PORT = 8084; // HiveMQ Cloud WebSocket (TLS) port
-let client = null, online = false;
+(() => {
+  const DEFAULT_HOST = "";   // optional: your broker address, so nobody has to type it
+  const PORT = 8084;         // EMQX secure WebSocket port
+  const $ = id => document.getElementById(id);
+  let client = null, online = false, everConnected = false;
+  let last = null, lastAt = 0, lockUntil = 0, toastT = 0;
 
-function load(){ try { return JSON.parse(localStorage.getItem("shutterCfg")||"null"); } catch(e){ return null; } }
-function store(c){ try { localStorage.setItem("shutterCfg", JSON.stringify(c)); } catch(e){} }
+  const cfgStore = {
+    get(){ try { return JSON.parse(localStorage.getItem("shutterCfg") || "null"); } catch(e){ return null; } },
+    set(v){ try { localStorage.setItem("shutterCfg", JSON.stringify(v)); } catch(e){} },
+    clear(){ try { localStorage.removeItem("shutterCfg"); } catch(e){} }
+  };
 
-function show(loggedIn){
-  $("login").classList.toggle("hidden", loggedIn);
-  $("panel").classList.toggle("hidden", !loggedIn);
-}
+  // Optional: lets Chrome treat the page like an app when added to the home screen
+  try {
+    const icon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b1b3a'/%3E%3Cpath d='M14 18h36M14 28h36M14 38h36' stroke='%23ff7a1a' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E";
+    const m = { name: "Shutter", short_name: "Shutter", display: "standalone", background_color: "#0b1b3a",
+                theme_color: "#0b1b3a", start_url: location.pathname, icons: [{ src: icon, sizes: "any", type: "image/svg+xml" }] };
+    const l = document.createElement("link");
+    l.rel = "manifest";
+    l.href = URL.createObjectURL(new Blob([JSON.stringify(m)], { type: "application/manifest+json" }));
+    document.head.appendChild(l);
+  } catch(e) {}
 
-function connect(cfg){
-  if (client) client.end(true);
-  $("sub").textContent = "Connecting...";
-  client = mqtt.connect(`wss://${cfg.host}:${PORT}/mqtt`, {
-    username: cfg.user, password: cfg.pass, reconnectPeriod: 4000,
-    clientId: "web-" + Math.random().toString(16).slice(2, 8)
-  });
-  client.on("connect", () => {
-    client.subscribe(["shutter/status", "shutter/availability"]);
-    show(true);
-  });
-  client.on("error", () => { $("sub").textContent = "Could not connect. Check host, username and password."; show(false); });
-  client.on("message", (topic, payload) => {
-    const text = payload.toString();
-    if (topic === "shutter/availability") {
-      online = text === "online";
-      $("sub").textContent = online ? "Shutter controller is online" : "Shutter controller is offline";
-    } else {
-      try {
-        const s = JSON.parse(text);
-        $("win").dataset.state = s.state;
-        $("msg").textContent = `${s.last} (schedule ${s.open} open, ${s.close} close${s.away ? ", away mode on" : ""}) | WiFi ${s.rssi} dBm`;
-      } catch(e){}
-    }
-  });
-}
+  function toast(t){
+    const el = $("toast"); el.textContent = t; el.classList.add("show");
+    clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("show"), 2200);
+  }
+  function ago(ms){
+    const s = Math.round(ms / 1000);
+    if (s < 10) return "just now";
+    if (s < 60) return s + " s ago";
+    const m = Math.round(s / 60);
+    if (m < 60) return m + " min ago";
+    return Math.round(m / 60) + " h ago";
+  }
+  function sigText(r){
+    if (!r) return "Signal –";
+    const q = r >= -60 ? "Strong" : r >= -70 ? "Good" : r >= -80 ? "Weak" : "Very weak";
+    return "Signal: " + q;
+  }
+  function setPill(kind, text){ $("pill").dataset.kind = kind; $("pillText").textContent = text; }
+  function showApp(on){ $("app").classList.toggle("hidden", !on); $("login").classList.toggle("hidden", on); }
 
-document.querySelectorAll("[data-cmd]").forEach(b => b.addEventListener("click", () => {
-  if (!client || !client.connected) { $("msg").textContent = "Not connected."; return; }
-  client.publish("shutter/cmd", b.dataset.cmd);
-  $("msg").textContent = `Sent: ${b.textContent}`;
-}));
+  function render(){
+    if (!client) return;
+    const s = last;
+    const ready = online && Date.now() >= lockUntil;
+    ["bOpen","bClose","bLeave","bCancel"].forEach(id => $(id).disabled = !ready);
+    $("away").disabled = !online;
 
-$("save").addEventListener("click", () => {
-  const cfg = { host: $("host").value.trim(), user: $("user").value.trim(), pass: $("pass").value };
-  if (!cfg.host || !cfg.user || !cfg.pass) return;
-  store(cfg); connect(cfg);
-});
+    if (!everConnected) setPill("wait", "Connecting…");
+    else if (!client.connected) setPill("wait", "Reconnecting…");
+    else if (!online) setPill("bad", "Controller offline");
+    else setPill("ok", "Online");
 
-const saved = load();
-if (saved) connect(saved); else { $("sub").textContent = "Enter your broker details once on this phone."; show(false); }
+    const target = s && s.target;
+    const state = s ? s.state : "unknown";
+    $("win").dataset.state = target || state;
+    $("win").classList.toggle("moving", !!target);
+    $("big").textContent = target === "closed" ? "Closing…" : target === "open" ? "Opening…"
+                         : ({ closed: "Closed", open: "Open" }[state] || "Unknown");
+    $("sub").textContent = !s ? "Waiting for the controller…" : s.leaving ? "Closing soon. Tap Cancel to stop it." : s.last;
+    $("awayChip").classList.toggle("hidden", !(s && s.away));
+    $("away").checked = !!(s && s.away);
+    $("sigChip").textContent = sigText(s && s.rssi);
+    $("tOpen").textContent = s ? s.open : "–";
+    $("tClose").textContent = s ? s.close : "–";
+    $("tAgo").textContent = lastAt ? ago(Date.now() - lastAt) : "–";
+
+    const a = $("alert");
+    if (s && s.problem) { a.textContent = s.problem; a.classList.remove("hidden"); }
+    else a.classList.add("hidden");
+  }
+
+  function connect(cfg){
+    if (client) client.end(true);
+    everConnected = false; online = false; last = null; lastAt = 0;
+    setPill("wait", "Connecting…");
+    client = mqtt.connect("wss://" + cfg.host + ":" + PORT + "/mqtt", {
+      username: cfg.user, password: cfg.pass, reconnectPeriod: 4000,
+      clientId: "web-" + Math.random().toString(16).slice(2, 8)
+    });
+    client.on("connect", () => {
+      everConnected = true;
+      client.subscribe(["shutter/status", "shutter/availability"]);
+      showApp(true); render();
+    });
+    client.on("close", render);
+    client.on("error", () => {
+      if (!everConnected) {
+        client.end(true);
+        showApp(false);
+        setPill("bad", "Not connected");
+        $("loginMsg").textContent = "Couldn’t connect. Check the address, username and password.";
+      }
+      render();
+    });
+    client.on("message", (topic, payload) => {
+      const t = payload.toString();
+      if (topic === "shutter/availability") online = (t === "online");
+      else { try { last = JSON.parse(t); lastAt = Date.now(); } catch(e) {} }
+      render();
+    });
+  }
+
+  function send(cmd, label){
+    if (!client || !client.connected || !online) { toast("Controller is offline"); return; }
+    client.publish("shutter/cmd", cmd);
+    toast(label + " sent");
+    lockUntil = Date.now() + 2500; render();
+    setTimeout(render, 2600);
+  }
+
+  $("bOpen").onclick   = () => send("open", "Open");
+  $("bClose").onclick  = () => send("close", "Close");
+  $("bLeave").onclick  = () => send("leave", "Leaving timer");
+  $("bCancel").onclick = () => send("cancel", "Cancel");
+  $("away").onchange   = e => send(e.target.checked ? "away_on" : "away_off", e.target.checked ? "Away on" : "Away off");
+
+  $("save").onclick = () => {
+    const cfg = {
+      host: $("host").value.trim().replace(/^[a-z]+:\/\//i, "").replace(/[:\/].*$/, ""),
+      user: $("user").value.trim(),
+      pass: $("pass").value
+    };
+    if (!cfg.host || !cfg.user || !cfg.pass) { $("loginMsg").textContent = "Please fill in all three fields."; return; }
+    $("loginMsg").textContent = "";
+    cfgStore.set(cfg); connect(cfg);
+  };
+
+  $("signout").onclick = () => {
+    cfgStore.clear();
+    if (client) client.end(true);
+    client = null; last = null; online = false;
+    $("pass").value = "";
+    showApp(false); setPill("wait", "Signed out");
+    $("loginMsg").textContent = "Signed out on this device.";
+  };
+
+  const saved = cfgStore.get();
+  $("host").value = (saved && saved.host) || DEFAULT_HOST;
+  if (saved) { $("user").value = saved.user || ""; $("pass").value = saved.pass || ""; connect(saved); }
+  else { showApp(false); setPill("wait", "Sign in"); }
+  setInterval(render, 15000);
+})();
 </script>
 </body>
 </html>
