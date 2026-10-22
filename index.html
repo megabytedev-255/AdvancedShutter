@@ -153,6 +153,7 @@ footer{margin-top:22px;text-align:center}
     </label>
 
     <section class="card info">
+      <p id="ipline" style="text-align:center;color:var(--muted);font-size:.85rem;margin:10px 0 0"></p>
       <div><small>Opens</small><b id="tOpen">–</b></div>
       <div><small>Closes</small><b id="tClose">–</b></div>
       <div><small>Updated</small><b id="tAgo">–</b></div>
@@ -233,6 +234,7 @@ footer{margin-top:22px;text-align:center}
     $("tOpen").textContent = s ? s.open : "–";
     $("tClose").textContent = s ? s.close : "–";
     $("tAgo").textContent = lastAt ? ago(Date.now() - lastAt) : "–";
+    $("ipline").textContent = s && s.ip ? "Controller on your home network: " + s.ip : "";
 
     const a = $("alert");
     if (s && s.problem) { a.textContent = s.problem; a.classList.remove("hidden"); }
